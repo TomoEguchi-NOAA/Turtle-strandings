@@ -1,0 +1,207 @@
+---
+title: "SDB stranding and water temp"
+output: html_notebook
+---
+
+Looking at relationship between the number of strandings and SDB water temperature. This analysis is for Robin LeRoux - stranding meeting in October 2018
+
+```{r}
+rm(list = ls())
+.libPaths("C:/Users/tomo.eguchi/AppData/Local/R")
+ifelse(Sys.info()[1] == 'Linux',
+       source('~/Documents/R/tools/TomosFunctions.R'),
+       source('~/R/tools/TomosFunctions.R'))
+library(dplyr)
+library(ggplot2)
+
+data1 <- read.csv("data/TurtlesWaterTemp_Jan2019a.csv")
+data1 %>% mutate(WaterTempC = F2C(WaterTemp),
+                 WaterTempC2 = WaterTempC^2,
+                 WaterTempC_lag = F2C(WaterTemp_lag),
+                 WaterTempC2_lag = WaterTempC_lag^2) -> data1
+
+p.1 <- ggplot(data = data1) + 
+  geom_point(aes(x = WaterTempC, y = Stranding),
+             size = 1.8,
+             color = "red")
+
+p.2 <- ggplot(data = data1) + 
+  geom_line(aes(x = MonthNum, y = Stranding))
+
+p.3 <- ggplot(data = data1) + 
+  geom_line(aes(x = MonthNum, y = WaterTempC))
+
+fit.1 <- lm(Stranding ~ WaterTempC, data = data1)
+
+```
+
+Looking at the relationship between water temp and stranding, there is a pretty good relationship but maybe not linear? 
+```{r}
+print(p.1)
+```
+
+A linear regression says so too.
+
+```{r}
+summary(fit.1)
+data1 %>% mutate(linear = predict(fit.1)) -> data1
+```
+
+```{r}
+p.1.2 <- p.1 + geom_line(data = data1, 
+                         aes(x = WaterTempC, y = linear))
+print(p.1.2)
+```
+
+How about a non-linear regression with a polynomial?
+
+```{r}
+#data1 %>% mutate(WaterTempC2 = WaterTempC * WaterTempC) -> data1
+fit.1.1 <- lm(Stranding ~ WaterTempC + WaterTempC2, data = data1)
+pred.fit.1 <- predict(fit.1.1, 
+                      newdata = data.frame(WaterTempC = seq(from = min(data1$WaterTempC),
+                                                           to = max(data1$WaterTempC),
+                                                           by = 0.1), 
+                                           WaterTempC2 = (seq(from = min(data1$WaterTempC),
+                                                             to = max(data1$WaterTempC),
+                                                             by = 0.1)^2)),
+                      se.fit = T,
+                      interval = "confidence")
+
+pred.data.1 <- data.frame(WaterTempC = seq(from = min(data1$WaterTempC),
+                                           to = max(data1$WaterTempC),
+                                           by = 0.1),
+                          fit = pred.fit.1$fit[,1],
+                          lower = pred.fit.1$fit[,2],
+                          upper = pred.fit.1$fit[,3]) 
+
+summary(fit.1.1)
+```
+
+A little improvements in the fit. 
+
+```{r}
+p.1.3 <- p.1 + 
+  geom_line(data = pred.data.1, 
+            aes(x = WaterTempC, y = fit),
+            color = "red",
+            size = 1.2) + 
+  geom_line(data = pred.data.1,
+            aes(x = WaterTempC, y = lower), 
+            color = "red", linetype = 2) + 
+  geom_line(data = pred.data.1,
+            aes(x = WaterTempC, y = upper), color = "red", linetype = 2) + 
+  labs(x = expression("Temperature " ( degree*C)), 
+                      y = "# Stranding") + 
+  theme(axis.text = element_text(size = 12))
+print(p.1.3)
+ggsave(filename = "figures/tempVsStranding_noLag.png",
+       device = "png", dpi = 600,
+       plot = p.1.3)
+
+```
+
+
+When looking at the number of strandings per month, there is an obvious peak.
+```{r}
+print(p.2)
+```
+
+When looking at the water temp in the same way...
+
+```{r}
+print(p.3)
+```
+
+There is a lag of about a month... So, why not shift data a bit
+
+```{r}
+# data2 <- data.frame(MonthNum = data1$MonthNum,
+#                     WaterTempC = data1$WaterTempC,
+#                     Stranding2 = c(data1$Stranding[2:12], NA),
+#                     WaterTempC2 = data1$WaterTempC2)
+
+p.2.1 <- ggplot(data = data1) + 
+  geom_point(aes(x = F2C(WaterTemp_lag), 
+                 y = Stranding),
+             color = "darkblue",
+             size = 2)
+
+p.2.2 <- ggplot(data = data1) + 
+  geom_line(aes(x = MonthNum, y = Stranding))
+
+p.2.3 <- ggplot(data = data1) + 
+  geom_line(aes(x = MonthNum, y = WaterTempC_lag))
+
+
+```
+
+```{r}
+print(p.2.1)
+```
+
+The non-linearity persists... so let's just use a polynomial from the beginning.
+
+
+```{r}
+print(p.2.2)
+```
+
+Then the water temp:
+
+```{r}
+print(p.2.3)
+```
+
+The peaks match better.
+
+Now look at the regression:
+
+```{r}
+fit.2 <- lm(Stranding ~ WaterTempC_lag + WaterTempC2_lag, 
+            data = data1)
+
+pred.fit.2 <- predict(fit.2,
+                      newdata = data.frame(WaterTempC_lag = seq(from = min(data1$WaterTempC_lag),
+                                                            to = max(data1$WaterTempC_lag),
+                                                            by = 0.1), 
+                                           WaterTempC2_lag = (seq(from = min(data1$WaterTempC_lag),
+                                                              to = max(data1$WaterTempC_lag),
+                                                              by = 0.1))^2),
+                      se.fit = T,
+                      interval = "confidence")
+
+pred.data <- data.frame(WaterTempC = seq(from = min(data1$WaterTempC_lag),
+                                         to = max(data1$WaterTempC_lag),
+                                         by = 0.1),
+                        fit = pred.fit.2$fit[,1],
+                        lower = pred.fit.2$fit[,2],
+                        upper = pred.fit.2$fit[,3]) 
+summary(fit.2)
+```
+
+```{r}
+p.2.2 <- p.2.1 + 
+  geom_line(data = pred.data, 
+            aes(x = WaterTempC, y = fit),
+            size = 1.3,
+            color = "darkblue") + 
+  geom_line(data = pred.data,
+            aes(x = WaterTempC, y = lower), 
+            linetype = 2,
+            size = 1,
+            color = "darkblue") + 
+  geom_line(data = pred.data,
+            aes(x = WaterTempC, y = upper), linetype = 2,
+            size = 1,
+            color = "darkblue") + 
+  labs(x = expression("Temperature " ( degree*C)), 
+                      y = "# Stranding") + 
+  theme(axis.text = element_text(size = 12))
+
+print(p.2.2)  
+ggsave(filename = "figures/WaterTempVsStrandings.png", 
+       plot = p.2.2, dpi = 600,
+       device = "png")
+```
+
