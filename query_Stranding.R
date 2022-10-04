@@ -1,8 +1,10 @@
 
 rm(list=ls())
-library(RODBC)
+#library(RODBC)
 library(dplyr)
 library(readr)
+library(DBI)
+library(odbc)
 
 SWFSC <- T
 # load a couple databases through ODBC
@@ -14,18 +16,42 @@ SWFSC <- T
 sp2filter <- data.frame(Genus = as.factor(c("Chelonia"))) #"Dermochelys"
 
 if (SWFSC){
-  Turtle <- odbcConnect(dsn = 'Turtle', uid = '', pwd = '')
-  #Turtle.tbls <- sqlTables(Turtle)
-  Turtle.Stranding <- sqlQuery(Turtle,
-                               'select * from tbl_Stranding')
-  Turtle.Stranding.Details <- sqlQuery(Turtle,
-                                       'select * from tbl_Stranding_Detail')
-  Sp.table <- sqlQuery(Turtle,
-                       'select * from tblSpecies')
-  odbcClose(Turtle)
-
-  SWFSCCommon <- odbcConnect(dsn = 'Common', uid = '', pwd = '')
-  Sp.table <- sqlQuery(SWFSCCommon,
+  Turtle.con <- dbConnect(odbc(),
+                          Driver = "ODBC Driver 18 for SQL Server",
+                          Server = "swc-estrella-s",
+                          database = "Turtle", 
+                          Trusted_Connection = "Yes",
+                          Encrypt = "Optional")
+  
+  Turtle.all <- dbListTables(Turtle.con)
+  Turtle.stranding <- dbGetQuery(Turtle.con, 'select * from tbl_Stranding')
+  
+  Turtle.Stranding.Details <- dbGetQuery(Turtle.con,
+                                         'select * from tbl_Stranding_Detail')
+  
+  dbDisconnect(Turtle.con)
+  
+  Common.con <- dbConnect(odbc(),
+                          Driver = "ODBC Driver 18 for SQL Server",
+                          Server = "swc-estrella-s",
+                          dadtabase = "SWFSCcommon", 
+                          Trusted_Connection = "Yes",
+                          Encrypt = "Optional")
+  
+  Common.all <- dbListTables(Common.con)
+  
+  dbDisconnect(Common.con)
+  
+  LIMS.con <- dbConnect(odbc(),
+                            Driver = "ODBC Driver 18 for SQL Server",
+                            Server = "swc-estrella-s",
+                            dadtabase = "LIMS", 
+                            Trusted_Connection = "Yes",
+                            Encrypt = "Optional")
+  
+  dbDisconnect(SWFSC.Con)
+  
+  Sp.table <- dbGetQuery(SWFSC.Common,
                        'select * from tblSpecies')
   State.table <- sqlQuery(SWFSCCommon,
                           'select * from tblState')
