@@ -34,7 +34,7 @@ if (SWFSC){
   Common.con <- dbConnect(odbc(),
                           Driver = "ODBC Driver 18 for SQL Server",
                           Server = "swc-estrella-s",
-                          dadtabase = "SWFSCcommon", 
+                          database = "SWFSCcommon", 
                           Trusted_Connection = "Yes",
                           Encrypt = "Optional")
   
