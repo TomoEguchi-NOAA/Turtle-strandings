@@ -1,7 +1,7 @@
 
 rm(list=ls())
 #library(RODBC)
-library(dplyr)
+library(tidyverse)
 library(readr)
 library(DBI)
 library(odbc)
@@ -12,10 +12,11 @@ SWFSC <- T
 
 # define the genus name for species to filter
 #sp2filter <- data.frame(Genus = as.factor(c("Chelonia", "Caretta", "Lepidochelys"))) #"Dermochelys"
-
-sp2filter <- data.frame(Genus = as.factor(c("Chelonia"))) #"Dermochelys"
+#sp2filter <- data.frame(Genus = as.factor(c("Chelonia"))) #"Dermochelys"
+sp2filter <- data.frame(Genus = as.factor(c("Caretta"))) 
 
 if (SWFSC){
+  # Connect to the turtle database
   Turtle.con <- dbConnect(odbc(),
                           Driver = "ODBC Driver 18 for SQL Server",
                           Server = "swc-estrella-s",
@@ -23,14 +24,15 @@ if (SWFSC){
                           Trusted_Connection = "Yes",
                           Encrypt = "Optional")
   
-  Turtle.all <- dbListTables(Turtle.con)
-  Turtle.stranding <- dbGetQuery(Turtle.con, 'select * from tbl_Stranding')
+  #Turtle.all <- dbListTables(Turtle.con)
+  Turtle.Stranding <- dbGetQuery(Turtle.con, 'select * from tbl_Stranding')
   
   Turtle.Stranding.Details <- dbGetQuery(Turtle.con,
                                          'select * from tbl_Stranding_Detail')
   
   dbDisconnect(Turtle.con)
   
+  # Connect to the Common database
   Common.con <- dbConnect(odbc(),
                           Driver = "ODBC Driver 18 for SQL Server",
                           Server = "swc-estrella-s",
@@ -38,32 +40,20 @@ if (SWFSC){
                           Trusted_Connection = "Yes",
                           Encrypt = "Optional")
   
-  Common.all <- dbListTables(Common.con)
+  #Common.all <- dbListTables(Common.con)
+  Sp.table <- dbGetQuery(Common.con,
+                         'select * from tblSpecies')  
   
+  State.table <- dbGetQuery(Common.con,
+                          'select * from tblState')
+  City.table <-  dbGetQuery(Common.con,
+                          'select * from tblCity')
+  island.table <- dbGetQuery(Common.con,
+                           "select * from tblIsland")
+  county.table <- dbGetQuery(Common.con,
+                           "select * from tblCounty")
   dbDisconnect(Common.con)
   
-  LIMS.con <- dbConnect(odbc(),
-                            Driver = "ODBC Driver 18 for SQL Server",
-                            Server = "swc-estrella-s",
-                            dadtabase = "LIMS", 
-                            Trusted_Connection = "Yes",
-                            Encrypt = "Optional")
-  
-  dbDisconnect(SWFSC.Con)
-  
-  Sp.table <- dbGetQuery(SWFSC.Common,
-                       'select * from tblSpecies')
-  State.table <- sqlQuery(SWFSCCommon,
-                          'select * from tblState')
-  City.table <-  sqlQuery(SWFSCCommon,
-                          'select * from tblCity')
-  island.table <- sqlQuery(SWFSCCommon,
-                           "select * from tblIsland")
-  county.table <- sqlQuery(SWFSCCommon,
-                           "select * from tblCounty")
-  odbcClose(SWFSCCommon)
-
-
   write.csv(Turtle.Stranding,
             file = paste0("data/Turtle_Stranding_", Sys.Date(), ".csv"),
             quote = F, row.names = F)
