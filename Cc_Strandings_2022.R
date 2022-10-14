@@ -18,11 +18,12 @@ moving.cumsum <- function(x, n = 2){
 
 library(tidyverse)
 library(reshape)
-library(maps)
-library(rgdal)
+# library(maps)
+# library(rgdal)
 library(ggmap)
 library(broom)
 library(viridis)
+library(scales)
 
 save.fig <- T
 
@@ -33,22 +34,24 @@ save.fig <- T
 #infile <- 'data/Turtle_Stranding_all_2017-10-30.rds'
 infile <- "data/WC_Strandings_Caretta_2022-10-05.csv"
 
+# scales library has col_factor, which conflicts with readr col_factor when
+# defining columns. 
 cols.def <- cols(Year_Initially_Observed = col_integer(),
                  Month_Initially_Observed = col_integer(),
                  Day_Initially_Observed = col_integer(),
-                 Stranded = col_factor(levels = c("TRUE", "FALSE")),
+                 Stranded = readr::col_factor(levels = c("TRUE", "FALSE")),
                  Released = col_character(),
                  Died = col_character(),
                  Latitude = col_double(),
                  Longitude = col_double(),
-                 State = col_factor(),
+                 State = readr::col_factor(),
                  Curved_Carapace_Length = col_double(),
                  Weight = col_double(),
-                 Fishery_Interaction = col_factor(),
+                 Fishery_Interaction = readr::col_factor(),
                  Human_Interaction = col_character(),
-                 Alive_Released = col_factor(),
-                 Genus = col_factor(),
-                 Species = col_factor(),
+                 Alive_Released = readr::col_factor(),
+                 Genus = readr::col_factor(),
+                 Species = readr::col_factor(),
                  Date = col_date(format = "%Y-%m-%d"))
 
 dat1 <- read_csv(infile, col_types = cols.def)
@@ -105,66 +108,66 @@ dat1.Cc[is.na(dat1.Cc$CCL), 'CCL'] <- mean(dat1.Cc$CCL, na.rm = T)
 
 #summary(dat1.human)
 # change the colors by state.
-
-# Get ONI Oceanic Nino Index data:
-# https://origin.cpc.ncep.noaa.gov/products/analysis_monitoring/ensostuff/ONI_change.shtml
-# look at the link at the bottom to see the most up to date data in a flat ascii file.
-oceans.and.maps.dir <- paste0(Sys.getenv("HOME"), "/Oceans and Maps/")
-ONI.values <- read_fwf(file = paste0(oceans.and.maps.dir, "/ONI/ONI_20221012.txt"), 
-                       col_positions = fwf_widths(c(4,5,7,11,5),
-                                                  col_names = c("Year", "Month", "Total", "ClimAdj", "ONI")),
-                       skip = 1,
-                       col_types = cols(col_integer(),
-                                        col_integer(),
-                                        col_double(),
-                                        col_double(),
-                                        col_double()))
-
-ONI.values %>% mutate(time = Year + Month/12 - 1/12) %>%
-  mutate(time.end = time + 1/12) %>%
-  mutate(Nino = ifelse(ONI.values$ONI > 0, 'TRUE', 'FALSE')) %>%
-  mutate(cumuONI = cumsum(ONI)) %>%
-  mutate(cumu6moONI = c(rep(NA, 5), moving.cumsum(ONI, 6))) %>%
-  mutate(cumu4moONI = c(rep(NA, 3), moving.cumsum(ONI, 4))) %>%
-  mutate(cumu2moONI = c(rep(NA, 1), moving.cumsum(ONI, 2))) %>%
-  mutate(lag6moONI = c(rep(NA, 6), ONI[1:(nrow(ONI.values) - 6)])) %>%
-  mutate(cumulag6moONI = c(rep(NA, 5), moving.cumsum(lag6moONI, 6))) %>%
-  filter(Year <= max(dat1.Cc$Year)+1 & Year >= min(dat1.Cc$Year)) -> ONI.values
-
-# Get PDO data:
-# https://www.ncei.noaa.gov/access/monitoring/pdo/
-# Select "View Data" and "Access Data" An ascii flat file will appear on the browser
-
-dat.PDO <- read_fwf(file = paste0(oceans.and.maps.dir, "/PDO/PDO_20221012.txt"), 
-                    col_positions = fwf_widths(c(4, rep(6, times = 12)),
-                                               col_names = c("Year", "Jan", "Feb", "Mar", "Apr",
-                                                             "May", "Jun", "Jul", "Aug", "Sep",
-                                                             "Oct", "Nov", "Dec")),
-                    skip = 1,
-                    col_types = cols(col_integer(),
-                                     col_double(), col_double(),
-                                     col_double(), col_double(),
-                                     col_double(), col_double(),
-                                     col_double(), col_double(),
-                                     col_double(), col_double(),
-                                     col_double(), col_double()))
-
-dat.PDO %>%
-  pivot_longer(!Year, names_to = "MMM", values_to = "PDO") -> PDO.values
-
-PDO.values %>%
-  mutate(Month = match(MMM, month.abb),
-         dt = (Month - 1)/12,
-         time = Year + dt,
-         Pos = ifelse(PDO > 0, "TRUE", "FALSE")) -> PDO.values
-
-PDO.values %>% mutate(cumuPDO = cumsum(PDO)) %>%
-  mutate(cumu6moPDO = c(rep(NA, 5), moving.cumsum(PDO, 6))) %>%
-  mutate(cumu4moPDO = c(rep(NA, 3), moving.cumsum(PDO, 4))) %>%
-  mutate(cumu2moPDO = c(rep(NA, 1), moving.cumsum(PDO, 2))) %>%
-  mutate(lag6moPDO = c(rep(NA, 6), PDO[1:(nrow(PDO.values) - 6)])) %>%
-  mutate(cumulag6moPDO = c(rep(NA, 5), moving.cumsum(lag6moPDO, 6))) %>%
-  filter(Year <= max(dat1.Cc$Year)+1 & Year >= min(dat1.Cc$Year)) -> PDO.values
+# 
+# # Get ONI Oceanic Nino Index data:
+# # https://origin.cpc.ncep.noaa.gov/products/analysis_monitoring/ensostuff/ONI_change.shtml
+# # look at the link at the bottom to see the most up to date data in a flat ascii file.
+# oceans.and.maps.dir <- paste0(Sys.getenv("HOME"), "/Oceans and Maps/")
+# ONI.values <- read_fwf(file = paste0(oceans.and.maps.dir, "/ONI/ONI_20221012.txt"), 
+#                        col_positions = fwf_widths(c(4,5,7,11,5),
+#                                                   col_names = c("Year", "Month", "Total", "ClimAdj", "ONI")),
+#                        skip = 1,
+#                        col_types = cols(col_integer(),
+#                                         col_integer(),
+#                                         col_double(),
+#                                         col_double(),
+#                                         col_double()))
+# 
+# ONI.values %>% mutate(time = Year + Month/12 - 1/12) %>%
+#   mutate(time.end = time + 1/12) %>%
+#   mutate(Nino = ifelse(ONI.values$ONI > 0, 'TRUE', 'FALSE')) %>%
+#   mutate(cumuONI = cumsum(ONI)) %>%
+#   mutate(cumu6moONI = c(rep(NA, 5), moving.cumsum(ONI, 6))) %>%
+#   mutate(cumu4moONI = c(rep(NA, 3), moving.cumsum(ONI, 4))) %>%
+#   mutate(cumu2moONI = c(rep(NA, 1), moving.cumsum(ONI, 2))) %>%
+#   mutate(lag6moONI = c(rep(NA, 6), ONI[1:(nrow(ONI.values) - 6)])) %>%
+#   mutate(cumulag6moONI = c(rep(NA, 5), moving.cumsum(lag6moONI, 6))) %>%
+#   filter(Year <= max(dat1.Cc$Year)+1 & Year >= min(dat1.Cc$Year)) -> ONI.values
+# 
+# # Get PDO data:
+# # https://www.ncei.noaa.gov/access/monitoring/pdo/
+# # Select "View Data" and "Access Data" An ascii flat file will appear on the browser
+# 
+# dat.PDO <- read_fwf(file = paste0(oceans.and.maps.dir, "/PDO/PDO_20221012.txt"), 
+#                     col_positions = fwf_widths(c(4, rep(6, times = 12)),
+#                                                col_names = c("Year", "Jan", "Feb", "Mar", "Apr",
+#                                                              "May", "Jun", "Jul", "Aug", "Sep",
+#                                                              "Oct", "Nov", "Dec")),
+#                     skip = 1,
+#                     col_types = cols(col_integer(),
+#                                      col_double(), col_double(),
+#                                      col_double(), col_double(),
+#                                      col_double(), col_double(),
+#                                      col_double(), col_double(),
+#                                      col_double(), col_double(),
+#                                      col_double(), col_double()))
+# 
+# dat.PDO %>%
+#   pivot_longer(!Year, names_to = "MMM", values_to = "PDO") -> PDO.values
+# 
+# PDO.values %>%
+#   mutate(Month = match(MMM, month.abb),
+#          dt = (Month - 1)/12,
+#          time = Year + dt,
+#          Pos = ifelse(PDO > 0, "TRUE", "FALSE")) -> PDO.values
+# 
+# PDO.values %>% mutate(cumuPDO = cumsum(PDO)) %>%
+#   mutate(cumu6moPDO = c(rep(NA, 5), moving.cumsum(PDO, 6))) %>%
+#   mutate(cumu4moPDO = c(rep(NA, 3), moving.cumsum(PDO, 4))) %>%
+#   mutate(cumu2moPDO = c(rep(NA, 1), moving.cumsum(PDO, 2))) %>%
+#   mutate(lag6moPDO = c(rep(NA, 6), PDO[1:(nrow(PDO.values) - 6)])) %>%
+#   mutate(cumulag6moPDO = c(rep(NA, 5), moving.cumsum(lag6moPDO, 6))) %>%
+#   filter(Year <= max(dat1.Cc$Year)+1 & Year >= min(dat1.Cc$Year)) -> PDO.values
 
 dat1.state <- dat1.Cc[dat1$State != '', ]
 p.1 <- ggplot(data = dat1.state) +
@@ -193,19 +196,28 @@ p.1 <- ggplot(data = dat1.state) +
 West.coast <- readRDS(file = 'RData/CC_stranding_westcoast.RData')
 So.Cal <- readRDS(file = 'RData/CC_stranding_SoCal.RData')
 
+# There are some incorrect lat/lon information so I remove them for
+# plotting on maps. I looked at plots and found a few that were not 
+# good... these were:
+
+dat1.Cc %>% filter(!(Year == 1998 & Latitude == 33.991)) %>%
+  filter(!(Year == 1981 & Latitude == 33)) %>%
+  filter(!(Year == 2016 & Latitude == 32)) -> dat2.Cc
+  
 map.west.coast <- ggmap(West.coast)
 map.So.Cal <- ggmap(So.Cal)
 p.2 <- map.west.coast +
-  geom_point(data = dat1.Cc,
+  geom_point(data = dat2.Cc,
              aes(x = Longitude, y = Latitude,
                  color = fYear),
              size = 4) +
   scale_color_viridis(discrete = TRUE, name = "Year") +
   xlab("Longitude") +
   ylab("Latitude") +
-  theme(legend.position = c(0.1, 0.3))
+  theme(legend.position = c(0.15, 0.5),
+        legend.background = element_rect(fill=alpha("white", 0.5)))
 
-dat.locs.So.Cal <- subset(dat1.Cc, Longitude > -122)
+dat.locs.So.Cal <- subset(dat2.Cc, Longitude > -122)
 
 p.3 <- map.So.Cal +
   geom_point(data = dat.locs.So.Cal,
@@ -218,7 +230,8 @@ p.3 <- map.So.Cal +
                       option = "turbo") +
   xlab("Longitude") +
   ylab("Latitude")+
-  theme(legend.position = c(0.1, 0.3))
+  theme(legend.position = c(0.2, 0.4),
+        legend.background = element_rect(fill=alpha("white", 0.6)))
 
 
 if (save.fig){
