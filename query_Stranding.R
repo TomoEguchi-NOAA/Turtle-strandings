@@ -19,7 +19,7 @@ if (SWFSC){
   # Connect to the turtle database
   Turtle.con <- dbConnect(odbc(),
                           Driver = "ODBC Driver 18 for SQL Server",
-                          Server = "swc-estrella-s",
+                          Server = "161.55.235.187", #"swc-estrella-s", 
                           database = "Turtle", 
                           Trusted_Connection = "Yes",
                           Encrypt = "Optional")
@@ -128,7 +128,7 @@ all.data <- inner_join(Turtle.Stranding.2,
                        by = c("ID" = "Stranding_ID")) %>%
   inner_join(Sp.table, by = c("Species_ID" = "ID")) %>%
   inner_join(State.table, by = c("State_ID" = "ID")) %>%
-  rename(State = Name)
+  dplyr::rename(State = Name)
 
   #%>%
   # inner_join(., City.table, by = c("City_ID" = "ID")) %>%
